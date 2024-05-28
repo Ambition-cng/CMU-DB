@@ -217,4 +217,12 @@ auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard {
   return {this, page};
 }
 
+auto BufferPoolManager::NewPageGuardedWrite(page_id_t *page_id) -> WritePageGuard {
+  Page *page = NewPage(page_id);
+  if (page != nullptr) {
+    page->WLatch();
+  }
+  return {this, page};
+}
+
 }  // namespace bustub

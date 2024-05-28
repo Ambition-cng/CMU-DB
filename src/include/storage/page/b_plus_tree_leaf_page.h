@@ -58,6 +58,26 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto GetNextPageId() const -> page_id_t;
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
+  auto PairAt(int index) const -> const MappingType &;
+
+  auto GetValue(const KeyType &key, std::vector<ValueType> *result, const KeyComparator &comparator) const -> bool;
+  auto SearchPostion(const KeyType &key, const KeyComparator &comparator) const -> int;
+
+  auto InsertIntoLeaf(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
+  auto SplitLeaf(B_PLUS_TREE_LEAF_PAGE_TYPE *split_leaf_page) -> KeyType;
+
+  auto RemoveFromLeaf(const KeyType &key, const KeyComparator &comparator) -> bool;
+
+  void BorrowFromPreviousSibling(B_PLUS_TREE_LEAF_PAGE_TYPE *sibling_page);
+  void BorrowFromNextSibling(B_PLUS_TREE_LEAF_PAGE_TYPE *sibling_page);
+
+  void PushFront(MappingType pair);
+  void PushBack(MappingType pair);
+  auto PopFront() -> MappingType;
+  auto PopBack() -> MappingType;
+
+  // Param key is not used, only to maintain consistency with internal page
+  void MergeWithNextSibling(const KeyType &key, B_PLUS_TREE_LEAF_PAGE_TYPE *next_sibling_leaf_page);
 
   /**
    * @brief for test only return a string representing all keys in

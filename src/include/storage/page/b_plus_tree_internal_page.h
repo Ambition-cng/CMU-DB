@@ -73,6 +73,26 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    */
   auto ValueAt(int index) const -> ValueType;
 
+  auto SearchPostion(int left, bool search_next_page, const KeyType &key, const KeyComparator &comparator) const -> int;
+
+  void InsertIntoInternal(int start_pos, const KeyType &middle_key, const ValueType &page_id,
+                          const ValueType &split_page_id, const KeyComparator &comparator);
+  void MoveKeys(B_PLUS_TREE_INTERNAL_PAGE_TYPE *split_internal_page, int page_size);
+  auto SplitInternal(B_PLUS_TREE_INTERNAL_PAGE_TYPE *split_internal_page, const KeyType &key, const ValueType &page_id,
+                     const ValueType &split_page_id, const KeyComparator &comparator) -> KeyType;
+
+  void RemoveFromInternal(int pos);
+
+  void BorrowFromPreviousSibling(B_PLUS_TREE_INTERNAL_PAGE_TYPE *sibling_page);
+  void BorrowFromNextSibling(B_PLUS_TREE_INTERNAL_PAGE_TYPE *sibling_page);
+
+  void PushFront(MappingType pair);
+  void PushBack(MappingType pair);
+  auto PopFront() -> MappingType;
+  auto PopBack() -> MappingType;
+
+  void MergeWithNextSibling(KeyType key, B_PLUS_TREE_INTERNAL_PAGE_TYPE *next_sibling_internal_page);
+
   /**
    * @brief For test only, return a string representing all keys in
    * this internal page, formatted as "(key1,key2,key3,...)"

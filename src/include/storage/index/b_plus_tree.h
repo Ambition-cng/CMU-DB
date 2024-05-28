@@ -72,8 +72,29 @@ class BPlusTree {
   // Returns true if this B+ tree has no keys and values.
   auto IsEmpty() const -> bool;
 
+  auto FindLeafPageRead(ReadPageGuard &&page_guard, page_id_t root_page_id, const KeyType &key) -> ReadPageGuard;
+  auto FindBoundaryLeafPageRead(ReadPageGuard &&page_guard, page_id_t root_page_id, bool find_first) -> ReadPageGuard;
+  auto FindLeafPageWrite(Context &ctx, page_id_t root_page_id, const KeyType &key, bool is_insert) -> WritePageGuard;
+
+  void SplitPage(Context &ctx, const KeyType &middle_key, page_id_t origin_page_id, page_id_t split_page_id);
+
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
+
+  void ShrinkRoot(Context &ctx, WritePageGuard &&root_page_guard);
+
+  template <typename PageType>
+  auto BorrowFromPreviousSibling(PageType *child_page, PageType *sibling_page, InternalPage *parent_page, int index)
+      -> bool;
+
+  template <typename PageType>
+  auto BorrowFromNextSibling(PageType *child_page, PageType *sibling_page, InternalPage *parent_page, int index)
+      -> bool;
+
+  template <typename PageType>
+  void MergeWithSibling(PageType *child_page, PageType *sibling_page, InternalPage *parent_page, int index);
+
+  void RedistributeOrMerge(Context &ctx, const KeyType &key, WritePageGuard &&page_guard);
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);
@@ -83,6 +104,9 @@ class BPlusTree {
 
   // Return the page id of the root node
   auto GetRootPageId() -> page_id_t;
+
+  // Set page id of the root of this tree
+  void SetRootPageId(Context &ctx, page_id_t root_page_id);
 
   // Index iterator
   auto Begin() -> INDEXITERATOR_TYPE;
