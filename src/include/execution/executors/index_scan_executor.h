@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "common/rid.h"
@@ -44,5 +45,8 @@ class IndexScanExecutor : public AbstractExecutor {
  private:
   /** The index scan plan node to be executed. */
   const IndexScanPlanNode *plan_;
+
+  /** Iterator for scanning through all the keys and tuple IDs */
+  BPlusTreeIndexIteratorForTwoIntegerColumn index_iter_;
 };
 }  // namespace bustub

@@ -22,7 +22,29 @@ INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *buffer_pool_manager, ReadPa
     : index_(index), bpm_(buffer_pool_manager), page_guard_(std::move(page_guard)) {}
 
 INDEX_TEMPLATE_ARGUMENTS
+INDEXITERATOR_TYPE::IndexIterator(IndexIterator &&that) noexcept {
+  index_ = that.index_;
+  bpm_ = that.bpm_;
+  page_guard_ = std::move(that.page_guard_);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto INDEXITERATOR_TYPE::operator=(IndexIterator &&that) noexcept -> IndexIterator & {
+  if (this != &that) {
+    index_ = that.index_;
+    bpm_ = that.bpm_;
+    page_guard_ = std::move(that.page_guard_);
+  }
+
+  return *this;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::IsEnd() -> bool {
+  if (index_ == -1) {
+    return true;
+  }
+
   auto leaf_page = page_guard_.As<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>();
   return (leaf_page->GetNextPageId() == -1 && index_ == leaf_page->GetSize());
 }

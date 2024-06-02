@@ -26,8 +26,10 @@ class IndexIterator {
   IndexIterator();
   ~IndexIterator();  // NOLINT
 
-  IndexIterator(BufferPoolManager *buffer_pool_manager, ReadPageGuard &&page_guard);
   IndexIterator(BufferPoolManager *buffer_pool_manager, ReadPageGuard &&page_guard, int index);
+
+  IndexIterator(IndexIterator &&that) noexcept;
+  auto operator=(IndexIterator &&that) noexcept -> IndexIterator &;
 
   auto IsEnd() -> bool;
 
@@ -45,7 +47,7 @@ class IndexIterator {
 
  private:
   // add your own private member variables here
-  int index_;
+  int index_ = -1;
   BufferPoolManager *bpm_;
   ReadPageGuard page_guard_;
 };
