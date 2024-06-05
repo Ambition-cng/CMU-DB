@@ -14,11 +14,13 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/nested_loop_join_plan.h"
 #include "storage/table/tuple.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
@@ -55,6 +57,27 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
  private:
   /** The NestedLoopJoin plan node to be executed. */
   const NestedLoopJoinPlanNode *plan_;
+
+  /** The child executor from which tuples are obtained for the left side of the join. */
+  std::unique_ptr<AbstractExecutor> left_executor_;
+  /** The child executor from which tuples are obtained for the right side of the join. */
+  std::unique_ptr<AbstractExecutor> right_executor_;
+
+  /** The current tuple from the left child executor that is being processed. */
+  Tuple left_tuple_;
+  /** The current tuple from the right child executor that is used for matching with the left_tuple_. */
+  Tuple right_tuple_;
+  /** A flag indicating whether a match was found for the current left_tuple_ when performing a LEFT JOIN. */
+  bool left_join_statisfied_;
+
+  /** Indicates whether the inner loop (right side tuples) should continue iterating or reset for a new left tuple. */
+  bool inner_loop_status_;
+  /** Indicates whether there are more tuples to process in the outer loop (left side tuples). */
+  bool outer_loop_status_;
+
+  auto IsJoinConditionSatisfied() const -> bool;
+  auto CombineTuples(bool right_null) const -> Tuple;
+  auto GetValuesFromTuple(const Tuple &tuple, const Schema &schema, bool is_null) const -> std::vector<Value>;
 };
 
 }  // namespace bustub

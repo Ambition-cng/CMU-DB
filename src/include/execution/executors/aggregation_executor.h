@@ -71,14 +71,45 @@ class SimpleAggregationHashTable {
    * @param input The input value
    */
   void CombineAggregateValues(AggregateValue *result, const AggregateValue &input) {
+    // Lambda function to update the result aggregate value at index i with a new value rhs_value
+    auto update_result = [&](uint32_t i, const Value &rhs_value) {
+      if (result->aggregates_[i].IsNull()) {
+        // If the current result aggregate value is null, initialize it with the new value
+        result->aggregates_[i] = rhs_value;
+      } else {
+        switch (agg_types_[i]) {
+          case AggregationType::CountStarAggregate:
+          case AggregationType::CountAggregate:
+          case AggregationType::SumAggregate:
+            // For COUNT(*) and COUNT aggregates, increment by one; for SUM, add the values
+            result->aggregates_[i] = result->aggregates_[i].Add(rhs_value);
+            break;
+          case AggregationType::MinAggregate:
+            result->aggregates_[i] = result->aggregates_[i].Min(rhs_value);
+            break;
+          case AggregationType::MaxAggregate:
+            result->aggregates_[i] = result->aggregates_[i].Max(rhs_value);
+            break;
+        }
+      }
+    };
+
     for (uint32_t i = 0; i < agg_exprs_.size(); i++) {
-      switch (agg_types_[i]) {
-        case AggregationType::CountStarAggregate:
-        case AggregationType::CountAggregate:
-        case AggregationType::SumAggregate:
-        case AggregationType::MinAggregate:
-        case AggregationType::MaxAggregate:
-          break;
+      // Special handling for COUNT(*), which does not rely on specific column values
+      if (agg_types_[i] == AggregationType::CountStarAggregate) {
+        update_result(i, ValueFactory::GetIntegerValue(1));
+      } else if (!input.aggregates_[i].IsNull()) {
+        switch (agg_types_[i]) {
+          case AggregationType::CountStarAggregate:
+          case AggregationType::CountAggregate:
+            update_result(i, ValueFactory::GetIntegerValue(1));
+            break;
+          case AggregationType::SumAggregate:
+          case AggregationType::MinAggregate:
+          case AggregationType::MaxAggregate:
+            update_result(i, input.aggregates_[i]);
+            break;
+        }
       }
     }
   }
@@ -181,7 +212,7 @@ class AggregationExecutor : public AbstractExecutor {
   auto MakeAggregateKey(const Tuple *tuple) -> AggregateKey {
     std::vector<Value> keys;
     for (const auto &expr : plan_->GetGroupBys()) {
-      keys.emplace_back(expr->Evaluate(tuple, child_->GetOutputSchema()));
+      keys.emplace_back(expr->Evaluate(tuple, child_executor_->GetOutputSchema()));
     }
     return {keys};
   }
@@ -190,7 +221,7 @@ class AggregationExecutor : public AbstractExecutor {
   auto MakeAggregateValue(const Tuple *tuple) -> AggregateValue {
     std::vector<Value> vals;
     for (const auto &expr : plan_->GetAggregates()) {
-      vals.emplace_back(expr->Evaluate(tuple, child_->GetOutputSchema()));
+      vals.emplace_back(expr->Evaluate(tuple, child_executor_->GetOutputSchema()));
     }
     return {vals};
   }
@@ -199,10 +230,12 @@ class AggregationExecutor : public AbstractExecutor {
   /** The aggregation plan node */
   const AggregationPlanNode *plan_;
   /** The child executor that produces tuples over which the aggregation is computed */
-  std::unique_ptr<AbstractExecutor> child_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
   /** Simple aggregation hash table */
-  // TODO(Student): Uncomment SimpleAggregationHashTable aht_;
+  SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator */
-  // TODO(Student): Uncomment SimpleAggregationHashTable::Iterator aht_iterator_;
+  SimpleAggregationHashTable::Iterator aht_iterator_;
+
+  bool aggregation_finished_;
 };
 }  // namespace bustub

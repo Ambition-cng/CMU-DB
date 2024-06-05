@@ -13,6 +13,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "execution/executor_context.h"
@@ -52,5 +53,11 @@ class SortExecutor : public AbstractExecutor {
  private:
   /** The sort plan node to be executed */
   const SortPlanNode *plan_;
+  /** The child executor from which RIDs for sorted tuples are pulled */
+  std::unique_ptr<AbstractExecutor> child_executor_;
+  /** An index used to keep track of the current position in tuple_pairs_ during iteration. */
+  uint32_t index_;
+  /** A vector of pairs, where each pair contains a tuple and its corresponding Record ID (RID). */
+  std::vector<std::pair<Tuple, RID>> tuple_pairs_;
 };
 }  // namespace bustub
