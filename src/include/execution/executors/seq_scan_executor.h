@@ -54,5 +54,15 @@ class SeqScanExecutor : public AbstractExecutor {
 
   /** Iterator for scanning through the table */
   std::unique_ptr<TableIterator> table_iter_;
+
+  Transaction *txn_;
+  IsolationLevel isolation_level_;
+  table_oid_t oid_;
+  bool table_lock_granted_;
+
+  void LockTable();
+  void UnLockTable();
+  auto LockRow(RID rid) -> bool;
+  void UnLockRow(bool row_lock_granted, RID rid, bool force = false);
 };
 }  // namespace bustub

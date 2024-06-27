@@ -21,6 +21,16 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 void InsertExecutor::Init() {
+  try {
+    Transaction *txn = exec_ctx_->GetTransaction();
+    table_oid_t oid = plan_->TableOid();
+    if (!txn->IsTableIntentionExclusiveLocked(oid)) {
+      exec_ctx_->GetLockManager()->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, oid);
+    }
+  } catch (TransactionAbortException &e) {
+    throw ExecutionException("executor fails to acquire a lock");
+  }
+
   insert_finished_ = false;
   // Initialize the child executor
   child_executor_->Init();
@@ -43,9 +53,13 @@ auto InsertExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
   while (status) {
     // Insert into table
-    auto new_rid =
-        table_info->table_->InsertTuple(TupleMeta{INVALID_TXN_ID, INVALID_TXN_ID, false}, child_tuple,
-                                        exec_ctx_->GetLockManager(), exec_ctx_->GetTransaction(), plan_->TableOid());
+    auto new_rid = table_info->table_->InsertTuple(
+        TupleMeta{exec_ctx_->GetTransaction()->GetTransactionId(), INVALID_TXN_ID, false}, child_tuple,
+        exec_ctx_->GetLockManager(), exec_ctx_->GetTransaction(), plan_->TableOid());
+
+    TableWriteRecord write_record = {plan_->TableOid(), new_rid.value(), table_info->table_.get()};
+    write_record.wtype_ = WType::INSERT;
+    exec_ctx_->GetTransaction()->AppendTableWriteRecord(write_record);
 
     // Insert into indexes
     for (auto index_info : table_indexes) {

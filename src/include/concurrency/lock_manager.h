@@ -310,18 +310,41 @@ class LockManager {
   TransactionManager *txn_manager_;
 
  private:
+  /*** Graph Helper Method ***/
+  void BuildWaitsForGraph();
+  template <typename LockMapType>
+  void AddWaitsForEdges(LockMapType &lock_map, std::mutex &lock_map_latch);
+  void BreakCycle(txn_id_t victim_txn_id);
+
   /** Spring 2023 */
   /* You are allowed to modify all functions below. */
+  auto HandleLockRequest(Transaction *txn, LockRequestQueue *lock_request_queue,
+                         std::unique_lock<std::mutex> &queue_lock, LockMode lock_mode, const table_oid_t &oid,
+                         const std::optional<RID> &rid) -> bool;
   auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool;
   auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool;
   auto AreLocksCompatible(LockMode l1, LockMode l2) -> bool;
+  auto CheckCompatibility(LockRequestQueue *lock_request_queue, txn_id_t txn_id, LockMode lock_mode) -> bool;
   auto CanTxnTakeLock(Transaction *txn, LockMode lock_mode) -> bool;
+  auto GetOrCreateLockRequest(Transaction *txn, LockMode lock_mode, const table_oid_t &oid,
+                              const std::optional<RID> &rid, LockRequestQueue *lock_request_queue) -> LockRequest *;
+  void WairForLockGranted(LockRequest *lock_request, std::unique_lock<std::mutex> &queue_lock, Transaction *txn,
+                          LockRequestQueue *lock_request_queue);
   void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
+  void ReleaseLocksForTable(Transaction *txn, const table_oid_t &oid);
+  void ReleaseLocksForRow(Transaction *txn, const table_oid_t &oid, const RID &rid);
+  void UpdateTransactionState(Transaction *txn, LockMode lock_mode, const table_oid_t &oid);
+  auto ReleaseLockAndCleanUp(Transaction *txn, const table_oid_t &oid, const std::optional<RID> &rid, bool force,
+                             LockRequestQueue *lock_request_queue) -> bool;
+  void CleanUpAbortedTxn(const txn_id_t &txn_id, LockRequestQueue *lock_request_queue, LockRequest *lock_request);
   auto CanLockUpgrade(LockMode curr_lock_mode, LockMode requested_lock_mode) -> bool;
+  auto CanTxnReleaseTableLock(Transaction *txn, const table_oid_t &oid) -> bool;
   auto CheckAppropriateLockOnTable(Transaction *txn, const table_oid_t &oid, LockMode row_lock_mode) -> bool;
   auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
                  std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool;
   void UnlockAll();
+
+  void AbortTransaction(Transaction *txn, AbortReason reason);
 
   /** Structure that holds lock requests for a given table oid */
   std::unordered_map<table_oid_t, std::shared_ptr<LockRequestQueue>> table_lock_map_;

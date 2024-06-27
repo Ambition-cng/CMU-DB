@@ -42,8 +42,14 @@ auto DeleteExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto table_indexes = catalog->GetTableIndexes(table_info->name_);
 
   while (status) {
+    auto tuple_meta = table_info->table_->GetTupleMeta(*rid);
     // Delete from table
-    table_info->table_->UpdateTupleMeta(TupleMeta{INVALID_TXN_ID, INVALID_TXN_ID, true}, *rid);
+    table_info->table_->UpdateTupleMeta(
+        TupleMeta{tuple_meta.insert_txn_id_, exec_ctx_->GetTransaction()->GetTransactionId(), true}, *rid);
+
+    TableWriteRecord write_record = {plan_->TableOid(), *rid, table_info->table_.get()};
+    write_record.wtype_ = WType::DELETE;
+    exec_ctx_->GetTransaction()->AppendTableWriteRecord(write_record);
 
     // Delete from  indexes
     for (auto index_info : table_indexes) {
